@@ -9,6 +9,7 @@ using namespace std;
 class Graph
 {
     int V;
+    int back_edges, forward_edges, cross_edges, tree_edges;
 
     int find(vector<int> &parent, int i)
     {
@@ -33,7 +34,7 @@ class Graph
         }
     }
 
-    void DFSUtil(int v, vector<vector<int>> &adj, vector<bool> &visited, vector<int> &entry_time, vector<int> &exit_time, int &time)
+    void DFSUtil(int v, vector<vector<int>> &adj, vector<bool> &visited, vector<int> &entry_time, vector<int> &exit_time, vector<int> &parent, int &time)
     {
         visited[v] = true;
         entry_time[v] = ++time;
@@ -41,7 +42,21 @@ class Graph
         for (auto u : adj[v])
         {
             if (!visited[u])
-                DFSUtil(u, adj, visited, entry_time, exit_time, time);
+            {
+                tree_edges++; // Tree edge
+                parent[u] = v;
+                DFSUtil(u, adj, visited, entry_time, exit_time, parent, time);
+            }
+            else
+            {
+                // Check edge types based on entry and exit times
+                if (entry_time[u] < entry_time[v] && exit_time[u] == 0)
+                    back_edges++; // Back edge
+                else if (entry_time[u] > entry_time[v] && exit_time[u] == 0)
+                    forward_edges++; // Forward edge
+                else
+                    cross_edges++; // Cross edge
+            }
         }
         exit_time[v] = ++time;
     }
@@ -68,6 +83,10 @@ public:
     Graph(int V)
     {
         this->V = V;
+        this->back_edges = 0;
+        this->cross_edges = 0;
+        this->tree_edges = 0;
+        this->forward_edges = 0;
     }
 
     void TopologicalSort(vector<vector<int>> &adj)
@@ -102,13 +121,13 @@ public:
         cout << endl;
     }
 
-    void DFS(vector<vector<int>> &adj, vector<int> &entry_time, vector<int> &exit_time)
+    void DFS(vector<vector<int>> &adj, vector<int> &entry_time, vector<int> &exit_time, vector<int> &parent)
     {
         vector<bool> visited(V, false);
         int time = 0;
         for (int i = 0; i < V; i++)
             if (!visited[i])
-                DFSUtil(i, adj, visited, entry_time, exit_time, time);
+                DFSUtil(i, adj, visited, entry_time, exit_time, parent, time);
     }
 
     bool cycle_detection(vector<vector<int>> &adj)
@@ -210,6 +229,10 @@ public:
 
         return mst;
     }
+    void print_edges_info()
+    {
+        cout << back_edges << " " << forward_edges << " " << cross_edges << " " << tree_edges << endl;
+    }
 };
 
 vector<vector<pair<int, int>>> weighted_adj_list(vector<vector<int>> &mat)
@@ -266,7 +289,7 @@ int main()
                     if (Adj_mat[i][j] == 1)
                         adj_list[i].push_back(j);
 
-            vector<int> entry_time(V, 0), exit_time(V, 0);
+            vector<int> entry_time(V, 0), exit_time(V, 0), parent(V, -1);
             bool cycle_exists = g.cycle_detection(adj_list);
 
             if (cycle_exists)
@@ -274,7 +297,9 @@ int main()
             else
                 cout << "No" << endl;
 
-            g.DFS(adj_list, entry_time, exit_time);
+            g.DFS(adj_list, entry_time, exit_time, parent);
+
+            g.print_edges_info();
 
             for (int i = 0; i < V; i++)
                 cout << entry_time[i] << ' ';
